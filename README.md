@@ -43,12 +43,59 @@ A powerful Python CLI tool for fetching, analyzing, and summarizing unread Gmail
    pip install -r requirements.txt
    ```
 
-4. **Set up Gmail API credentials**
+4. **Set up Gmail API credentials (Critical Step!)**
+   
+   **⚠️ Important**: This app is in development mode, so you must add your Gmail account as a test user.
+   
+   **Step 4a: Create Google Cloud Project**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
-   - Enable Gmail API
-   - Create credentials (OAuth 2.0 Client ID)
-   - Download the credentials file as `config/credentials.json`
+   - Click "Select a project" → "New Project"
+   - Name your project (e.g., "Gmail Summarizer")
+   - Click "Create" and wait for project creation
+   - Make sure your new project is selected in the top dropdown
+   
+   **Step 4b: Enable Gmail API**
+   - In the left sidebar, click "APIs & Services" → "Library"
+   - Search for "Gmail API"
+   - Click on "Gmail API" from the results
+   - Click the blue "Enable" button
+   - Wait for the API to be enabled
+   
+   **Step 4c: Configure OAuth Consent Screen**
+   - Go to "APIs & Services" → "OAuth consent screen"
+   - Choose "External" user type (unless you have Google Workspace)
+   - Fill in required fields:
+     - App name: "Gmail Summarizer"
+     - User support email: Your Gmail address
+     - Developer contact: Your Gmail address
+   - Click "Save and Continue"
+   - Skip "Scopes" step (click "Save and Continue")
+   - **IMPORTANT - Add Test Users:**
+     - In "Test users" section, click "+ Add Users"
+     - Add the Gmail account you want to use with this app
+     - Click "Save" then "Save and Continue"
+   - Review and click "Back to Dashboard"
+   
+   **Step 4d: Create OAuth Credentials**
+   - Go to "APIs & Services" → "Credentials"
+   - Click "+ Create Credentials" → "OAuth 2.0 Client ID"
+   - Choose "Desktop application"
+   - Name it "Gmail Summarizer Desktop"
+   - Click "Create"
+   
+   **Step 4e: Download and Install Credentials**
+   - Click the download icon (⬇️) next to your newly created credential
+   - Save the JSON file
+   - Rename and move it to your project:
+     ```bash
+     # On Windows (PowerShell)
+     mkdir config -ErrorAction SilentlyContinue
+     Move-Item "$env:USERPROFILE\Downloads\client_secret_*.json" "config\credentials.json"
+     
+     # On macOS/Linux
+     mkdir -p config
+     mv ~/Downloads/client_secret_*.json config/credentials.json
+     ```
 
 5. **Create environment file**
    ```bash
@@ -92,6 +139,18 @@ Initial setup and authentication with Gmail API.
 ```bash
 python main.py setup
 ```
+
+## 📦 Dependencies
+
+**Only 6 lightweight packages!**
+
+This project uses minimal dependencies to keep installation fast and simple:
+
+- **google-api-python-client** - Gmail API access
+- **google-auth** & **google-auth-oauthlib** - Secure OAuth2 authentication
+- **click** - Modern CLI framework
+- **rich** - Beautiful terminal output with colors and tables
+- **python-dotenv** - Environment variable management
 
 ## 🏗️ Project Structure
 
@@ -211,6 +270,33 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Problem**: "Access blocked: This app's request is invalid"
+- **Solution**: Make sure you added your Gmail account as a test user in the OAuth consent screen (Step 4c above)
+
+**Problem**: "The file config/credentials.json was not found"
+- **Solution**: Download the credentials file from Google Cloud Console and place it in the `config/` directory
+- Make sure the file is named exactly `credentials.json`
+
+**Problem**: "This app isn't verified"
+- **Solution**: Click "Advanced" → "Go to Gmail Summarizer (unsafe)" - this is normal for development apps
+
+**Problem**: "insufficient authentication scopes"
+- **Solution**: Delete `config/token.json` and run `python main.py setup` again to re-authenticate
+
+**Problem**: No unread emails showing but you have unread emails
+- **Solution**: Check if your Gmail account has unread emails. The app only shows emails marked as "unread" in Gmail
+
+### Getting Help
+
+If you're still having issues:
+1. Check the [Issues page](https://github.com/yourusername/gmail-summarizer/issues) for similar problems
+2. Run with debug mode: Set `DEBUG=true` in your `.env` file
+3. Create a new issue with the error message and steps you followed
 
 ## 📞 Support
 

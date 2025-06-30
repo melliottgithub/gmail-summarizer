@@ -34,16 +34,35 @@ class GmailClient:
         
         # Load existing token
         if os.path.exists(self.settings.gmail_token_path):
-            with open(self.settings.gmail_token_path, 'rb') as token:
-                creds = pickle.load(token)
+            try:
+                with open(self.settings.gmail_token_path, 'rb') as token:
+                    creds = pickle.load(token)
+                logger.info("Loaded existing credentials from token file")
+            except Exception as e:
+                logger.warning(f"Failed to load existing token: {e}")
+                # Remove corrupted token file
+                try:
+                    os.remove(self.settings.gmail_token_path)
+                    logger.info("Removed corrupted token file")
+                except Exception:
+                    pass
+                creds = None
         
         # If there are no (valid) credentials available, let the user log in
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 try:
+                    logger.info("Attempting to refresh expired credentials")
                     creds.refresh(Request())
+                    logger.info("Successfully refreshed credentials")
                 except Exception as e:
                     logger.warning(f"Failed to refresh credentials: {e}")
+                    # Remove invalid token file
+                    try:
+                        os.remove(self.settings.gmail_token_path)
+                        logger.info("Removed invalid token file")
+                    except Exception:
+                        pass
                     creds = None
             
             if not creds:
@@ -53,16 +72,32 @@ class GmailClient:
                         "Please download it from Google Cloud Console."
                     )
                 
+                logger.info("Starting OAuth flow for new credentials")
                 flow = InstalledAppFlow.from_client_secrets_file(
                     self.settings.gmail_credentials_path,
                     self.settings.get_gmail_scopes()
                 )
-                creds = flow.run_local_server(port=0)
+                # Force account selection by not using any cached login
+                try:
+                    creds = flow.run_local_server(
+                        port=0, 
+                        access_type='offline', 
+                        include_granted_scopes='true', 
+                        prompt='select_account'
+                    )
+                    logger.info("OAuth flow completed successfully")
+                except Exception as e:
+                    logger.error(f"OAuth flow failed: {e}")
+                    raise
             
             # Save the credentials for the next run
-            os.makedirs(os.path.dirname(self.settings.gmail_token_path), exist_ok=True)
-            with open(self.settings.gmail_token_path, 'wb') as token:
-                pickle.dump(creds, token)
+            try:
+                os.makedirs(os.path.dirname(self.settings.gmail_token_path), exist_ok=True)
+                with open(self.settings.gmail_token_path, 'wb') as token:
+                    pickle.dump(creds, token)
+                logger.info(f"Saved credentials to {self.settings.gmail_token_path}")
+            except Exception as e:
+                logger.warning(f"Failed to save credentials: {e}")
         
         self.service = build('gmail', 'v1', credentials=creds)
         logger.info("Gmail API authentication successful")
@@ -140,10 +175,7 @@ class GmailClient:
         if query:
             query_parts.append(query)
         
-        # Add label filters from settings
-        if self.settings.include_only_labels:
-            label_query = " OR ".join([f"label:{label}" for label in self.settings.include_only_labels])
-            query_parts.append(f"({label_query})")
+        # No label filtering for minimal version
         
         return " ".join(query_parts) if query_parts else ""
     
