@@ -67,3 +67,10 @@ coverage.xml
 
 # mypy
 .mypy_cache/
+
+# Claude AI
+.claude/
+.claude_history
+claude_*.json
+claude_sessions/
+*.claude
