@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import logging
 
-from domain.models import Email, ImportanceScore, EmailSummary, ImportanceLevel
+from src.domain.models import Email, ImportanceScore, EmailSummary, ImportanceLevel
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,8 @@ class JsonEmailRepository:
                 level=ImportanceLevel(analysis['level']),
                 safe_to_delete=analysis['safe_to_delete'],
                 safety_override=analysis['safety_override'],
-                reasons=analysis['reasons']
+                reasons=analysis['reasons'],
+                category=analysis.get('category', 'other')
             )
         
         # Add summary if available

@@ -16,10 +16,10 @@ import logging
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from gmail_client import GmailClient
+from src.gmail_client import GmailClient
 from config.settings import Settings
-from application.email_service import EmailApplicationService
-from domain.models import AnalysisConfig
+from src.application.email_service import EmailApplicationService
+from src.domain.models import AnalysisConfig
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -288,7 +288,7 @@ async def _analyze_async(ctx, batch_size, with_summary, interactive):
         raise click.ClickException(str(e))
 
 @cli.command()
-@click.option('--min-score', default=-2.0, help='Minimum importance score for candidates (lower = more aggressive deletion)')
+@click.option('--min-score', default=3.0, help='Minimum importance score for candidates (lower = more aggressive deletion)')
 @click.option('--limit', '-l', default=20, help='Maximum number of candidates to show')
 @click.option('--interactive', '-i', is_flag=True, help='Interactive mode with min-score explanation')
 @click.pass_context
@@ -303,8 +303,9 @@ def candidates(ctx, min_score, limit, interactive):
         console.print("• Lower min-score = more aggressive deletion")
         console.print("• Higher min-score = more conservative deletion")
         console.print("\n[cyan]Score Guidelines:[/cyan]")
-        console.print("• -2.0: Very aggressive (deletes most trash)")
-        console.print("• 0.0: Moderate (deletes clear trash)")
+        console.print("• -5.0: Very aggressive (deletes most trash) - NEW DEFAULT")
+        console.print("• -2.0: Aggressive (deletes clear trash)")
+        console.print("• 0.0: Moderate (conservative approach)")
         console.print("• 2.0: Conservative (deletes only obvious spam)")
         console.print("• 5.0: Very conservative (deletes almost nothing)")
         
@@ -384,16 +385,38 @@ def candidates(ctx, min_score, limit, interactive):
         if len(candidates) > limit:
             console.print(f"[dim]... and {len(candidates) - limit} more candidates[/dim]")
         
-        # Show statistics
-        console.print(f"\n[bold cyan]📊 Deletion Candidate Summary:[/bold cyan]")
+        # Show category-based summary (preview of what would be deleted)
+        preview_summary = email_service.generate_deletion_summary(candidates)
+        console.print(f"\n[bold cyan]📊 Deletion Preview by Category:[/bold cyan]")
         
-        # Count by importance level
+        if preview_summary['categories']:
+            # Sort categories by count (descending)
+            sorted_categories = sorted(
+                preview_summary['categories'].items(),
+                key=lambda x: x[1]['count'],
+                reverse=True
+            )
+            
+            for category, info in sorted_categories:
+                count = info['count']
+                label = info['label']
+                console.print(f"  • [yellow]{count}[/yellow] {label}")
+                
+                # Show examples for the top categories
+                if count >= 3 and info['examples']:
+                    example_senders = [ex['sender'][:20] for ex in info['examples'][:2]]
+                    console.print(f"    [dim]Examples: {', '.join(example_senders)}[/dim]")
+        
+        # Show size estimate
+        if preview_summary['total_size_mb'] > 0:
+            console.print(f"  • [cyan]Estimated space savings: {preview_summary['total_size_mb']} MB[/cyan]")
+        
+        # Show importance level breakdown
+        console.print(f"\n[bold cyan]📊 By Importance Level:[/bold cyan]")
         level_counts = {}
-        total_size = 0
         for email in candidates:
             level = email.importance_score.level.value
             level_counts[level] = level_counts.get(level, 0) + 1
-            total_size += email.size_estimate
         
         for level, count in level_counts.items():
             color = {
@@ -402,11 +425,6 @@ def candidates(ctx, min_score, limit, interactive):
                 'MEDIUM': 'blue'
             }.get(level, 'white')
             console.print(f"  • [{color}]{level}[/{color}]: {count} emails")
-        
-        # Show size estimate
-        if total_size > 0:
-            size_mb = total_size / (1024 * 1024)
-            console.print(f"  • Estimated space savings: {size_mb:.1f} MB")
         
         # Show next steps
         console.print(f"\n[bold blue]🔥 Next Steps:[/bold blue]")
@@ -421,7 +439,7 @@ def candidates(ctx, min_score, limit, interactive):
 @cli.command()
 @click.option('--dry-run', is_flag=True, help='Preview marking as read without actually doing it')
 @click.option('--confirm', is_flag=True, help='Actually mark emails as read (no additional confirmation)')
-@click.option('--min-score', default=-2.0, help='Minimum score threshold for marking as read (lower = more aggressive)')
+@click.option('--min-score', default=3.0, help='Minimum score threshold for marking as read (lower = more aggressive)')
 @click.option('--interactive', '-i', is_flag=True, help='Interactive mode with explanations')
 @click.pass_context
 def mark_read(ctx, dry_run, confirm, min_score, interactive):
@@ -570,14 +588,19 @@ async def _mark_read_async(ctx, dry_run, confirm, min_score, interactive):
                         failed_count += 1
                         progress.advance(task)
             
-            # Show results
-            console.print(f"\n[bold green]✅ MARK AS READ COMPLETE[/bold green]")
-            console.print(f"  • Successfully marked as read: {processed_count} emails")
-            if failed_count > 0:
-                console.print(f"  • Failed to process: {failed_count} emails")
-            console.print(f"  • These {processed_count} emails are no longer 'unread'")
+            # Generate and show categorized summary
+            successfully_marked = [email for i, email in enumerate(candidates) if i < processed_count]
+            summary = email_service.generate_deletion_summary(successfully_marked)
+            summary_lines = email_service.format_deletion_summary_for_display(summary)
             
-            console.print(f"\n[bold blue]📧 Result:[/bold blue]")
+            console.print(f"\n[bold green]✅ MARK AS READ COMPLETE[/bold green]")
+            for line in summary_lines:
+                console.print(line)
+            
+            if failed_count > 0:
+                console.print(f"\n[yellow]⚠️ Failed to process: {failed_count} emails[/yellow]")
+            
+            console.print(f"\n[bold blue]📧 Final Result:[/bold blue]")
             console.print(f"  • Your unread count has been reduced by {processed_count}")
             console.print(f"  • Emails are still in your inbox but marked as read")
         
@@ -591,7 +614,7 @@ async def _mark_read_async(ctx, dry_run, confirm, min_score, interactive):
 
 @cli.command()
 @click.option('--max-emails', '-m', default=50, help='Maximum number of unread emails to fetch')
-@click.option('--min-score', default=-2.0, help='Minimum score threshold for marking as read (lower = more aggressive)')
+@click.option('--min-score', default=3.0, help='Minimum score threshold for marking as read (lower = more aggressive)')
 @click.option('--dry-run', is_flag=True, help='Preview the entire workflow without making changes')
 @click.option('--interactive', '-i', is_flag=True, help='Interactive mode with explanations and confirmations')
 @click.pass_context
@@ -741,12 +764,17 @@ async def _auto_async(ctx, max_emails, min_score, dry_run, interactive):
                         failed_count += 1
                         progress.advance(task)
             
-            # Show final results
+            # Generate and show categorized summary
+            successfully_marked = [email for i, email in enumerate(candidates) if i < processed_count]
+            summary = email_service.generate_deletion_summary(successfully_marked)
+            summary_lines = email_service.format_deletion_summary_for_display(summary)
+            
             console.print(f"\n[bold green]🎉 AUTO WORKFLOW COMPLETE![/bold green]")
-            console.print(f"✅ Successfully marked {processed_count} emails as read")
+            for line in summary_lines:
+                console.print(line)
+            
             if failed_count > 0:
-                console.print(f"⚠️ Failed to process {failed_count} emails")
-            console.print(f"📊 Your unread count reduced by {processed_count}")
+                console.print(f"\n[yellow]⚠️ Failed to process {failed_count} emails[/yellow]")
             
             console.print(f"\n[bold blue]📧 Final Result:[/bold blue]")
             console.print(f"• Started with: {len(domain_emails)} unread emails")
