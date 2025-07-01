@@ -100,6 +100,10 @@ async def test_ultra_aggressive_scoring():
                 assert score.score >= 7.0, f"Important email scored too low: {score.score}"
                 assert not score.safe_to_delete, "Important email should not be safe to delete"
                 print("   ✅ Correctly identified as important")
+            elif 'john.doe@gmail.com' in email.sender:
+                assert score.score >= 5.0, f"Personal email scored too low: {score.score}"
+                assert not score.safe_to_delete, "Personal email should not be safe to delete"
+                print("   ✅ Correctly identified as personal communication")
         
         print()
     

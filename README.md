@@ -307,7 +307,7 @@ python main.py mark-read [OPTIONS]
 **Options:**
 - `--dry-run`: Preview which emails will be marked as read (safe)
 - `--confirm`: Actually mark emails as read in Gmail
-- `--min-score FLOAT`: Minimum score threshold (default: -5.0, very aggressive)
+- `--min-score FLOAT`: Minimum score threshold (default: 3.0, ultra aggressive)
 - `-i, --interactive`: Interactive mode with explanations
 
 **Examples:**
