@@ -6,9 +6,11 @@ A powerful Python CLI tool for fetching, analyzing, and summarizing unread Gmail
 
 - 📧 **Unread Email Fetching**: Quickly view all unread emails with a clean, organized table display
 - 🎨 **Rich CLI Interface**: Beautiful terminal output with colors and formatting using Rich
-- 📊 **Email Analytics**: Get insights about your unread emails including top senders
+- 🧠 **AI-Powered Email Analysis**: Advanced importance scoring using local LLM models (Ollama)
+- 🗑️ **Smart Deletion Recommendations**: AI identifies emails safe to delete with safety overrides
+- 📊 **Email Analytics**: Get insights about your unread emails including top senders and importance distribution
 - 🔐 **Secure Authentication**: OAuth2 integration with Gmail API
-- 🤖 **AI Integration Ready**: Built-in support for OpenAI and Anthropic APIs for future summarization features
+- 🏗️ **Domain-Driven Design**: Clean architecture following DDD principles
 - ⚡ **Fast & Lightweight**: Efficient email processing with minimal resource usage
 
 ## 🚀 Quick Start
@@ -18,6 +20,7 @@ A powerful Python CLI tool for fetching, analyzing, and summarizing unread Gmail
 - Python 3.8+
 - Gmail account with API access
 - Google Cloud Project with Gmail API enabled
+- [Ollama](https://ollama.ai/) installed for AI analysis (optional but recommended)
 
 ### Installation
 
@@ -118,31 +121,300 @@ A powerful Python CLI tool for fetching, analyzing, and summarizing unread Gmail
 
 ## 📋 Commands
 
-### `unread`
-Fetch and display unread emails in a formatted table.
+The Gmail Summarizer provides a comprehensive set of commands for email management, from basic fetching to advanced AI-powered cleanup workflows.
+
+### 🚀 Quick Start Commands
+
+**For beginners - try these first:**
+```bash
+# Setup authentication (run once)
+python main.py setup
+
+# Get unread emails 
+python main.py unread
+
+# Interactive AI analysis
+python main.py analyze -i
+
+# Full automatic cleanup (preview mode)
+python main.py auto --dry-run -i
+```
+
+---
+
+### 📧 `unread` - Fetch Unread Emails
+
+Fetches fresh unread emails from Gmail and replaces the local database.
 
 ```bash
 python main.py unread [OPTIONS]
 ```
 
 **Options:**
-- `-m, --max-emails INTEGER`: Maximum number of unread emails to show (default: 50)
+- `-m, --max-emails INTEGER`: Maximum number of unread emails to fetch (default: 50)
 
-**Example:**
+**Examples:**
 ```bash
+# Fetch up to 50 unread emails (default)
+python main.py unread
+
+# Fetch specific number of emails
 python main.py unread --max-emails 25
+
+# Fetch maximum emails
+python main.py unread --max-emails 100
 ```
 
-### `setup`
+**What it does:**
+- 📧 Fetches current unread emails from Gmail
+- 🔄 Replaces database with fresh batch (clean slate each time)
+- 📊 Shows email table with date, sender, subject
+- 🔗 Preserves any existing analysis for emails that are still unread
+- 💾 Saves emails to local JSON database
+
+---
+
+### 🤖 `analyze` - AI Email Analysis
+
+Analyzes saved emails using AI to score importance and identify trash emails.
+
+```bash
+python main.py analyze [OPTIONS]
+```
+
+**Options:**
+- `-b, --batch-size INTEGER`: Number of emails to analyze per batch (default: 10)
+  - `1`: Slower but shows each email being analyzed
+  - `10`: Faster, processes multiple emails together
+- `--with-summary`: Include email summarization (slower)
+- `-i, --interactive`: Interactive mode with explanations
+
+**Examples:**
+```bash
+# Basic analysis
+python main.py analyze
+
+# Interactive analysis with explanations
+python main.py analyze -i
+
+# Detailed view (see each email individually)
+python main.py analyze --batch-size 1
+
+# With email summaries
+python main.py analyze --with-summary
+```
+
+**AI Analysis Features:**
+- 🎯 **Importance Scoring**: Each email gets a 1-10 importance score
+- 🏷️ **Smart Categories**: CRITICAL, HIGH, MEDIUM, LOW, SPAM
+- 🛡️ **Safety Overrides**: Never marks security/financial/medical emails as deletable
+- 📊 **Progress Tracking**: Live progress with email-by-email updates (batch size 1)
+- 🎨 **Color-coded Status**: Different colors for analyzing, saving, completed, error
+
+**Interactive Mode:**
+- ❓ Explains what AI analysis does
+- ⚙️ Lets you choose batch size (1 for detailed view)
+- 📈 Shows real-time progress with individual email details
+
+---
+
+### 🗑️ `candidates` - View Deletion Candidates
+
+Shows emails that AI recommends for marking as read (trash emails).
+
+```bash
+python main.py candidates [OPTIONS]
+```
+
+**Options:**
+- `--min-score FLOAT`: Minimum importance score for candidates (default: -2.0)
+  - Lower values = more aggressive deletion
+  - Higher values = more conservative deletion
+- `-l, --limit INTEGER`: Maximum number of candidates to show (default: 20)
+- `-i, --interactive`: Interactive mode with min-score explanation
+
+**Examples:**
+```bash
+# Show deletion candidates
+python main.py candidates
+
+# Interactive mode (explains min-score)
+python main.py candidates -i
+
+# More aggressive deletion
+python main.py candidates --min-score -5.0
+
+# More conservative deletion  
+python main.py candidates --min-score 2.0
+
+# Show more candidates
+python main.py candidates --limit 50
+```
+
+**Min-Score Guidelines:**
+- `-2.0`: **Very aggressive** (deletes most trash)
+- `0.0`: **Moderate** (deletes clear trash)
+- `2.0`: **Conservative** (deletes only obvious spam)
+- `5.0`: **Very conservative** (deletes almost nothing)
+
+**What it shows:**
+- 📋 Table of emails recommended for deletion
+- 📊 Score, importance level, and reasons for each email
+- 📈 Statistics by importance level
+- 💾 Estimated space savings
+
+---
+
+### ✅ `mark-read` - Mark Trash as Read
+
+Marks trash emails as read in Gmail to clean up your unread count.
+
+```bash
+python main.py mark-read [OPTIONS]
+```
+
+**Options:**
+- `--dry-run`: Preview which emails will be marked as read (safe)
+- `--confirm`: Actually mark emails as read in Gmail
+- `--min-score FLOAT`: Minimum score threshold (default: -2.0)
+- `-i, --interactive`: Interactive mode with explanations
+
+**Examples:**
+```bash
+# Preview what will be marked as read
+python main.py mark-read --dry-run
+
+# Actually mark emails as read
+python main.py mark-read --confirm
+
+# Interactive mode (explains everything)
+python main.py mark-read -i
+
+# More aggressive marking
+python main.py mark-read --confirm --min-score -5.0
+```
+
+**Safety Features:**
+- 🛡️ **Safe Operation**: Emails are marked as read, not deleted
+- 🔄 **Reversible**: You can always mark emails as unread again
+- 👀 **Preview Mode**: Always preview with `--dry-run` first
+- ⚠️ **Confirmation Required**: Must use `--confirm` to actually make changes
+
+**Interactive Mode:**
+- ❓ Explains what marking as read does
+- ⚙️ Helps you choose between preview and confirm mode
+- 📊 Shows impact on unread count
+
+---
+
+### 🚀 `auto` - Complete Workflow
+
+Runs the entire email cleanup workflow automatically: fetch → analyze → mark-read.
+
+```bash
+python main.py auto [OPTIONS]
+```
+
+**Options:**
+- `-m, --max-emails INTEGER`: Maximum emails to fetch (default: 50)
+- `--min-score FLOAT`: Score threshold for marking as read (default: -2.0)
+- `--dry-run`: Preview entire workflow without making changes
+- `-i, --interactive`: Interactive mode with explanations and confirmations
+
+**Examples:**
+```bash
+# Full workflow preview (safe)
+python main.py auto --dry-run
+
+# Interactive preview with explanations
+python main.py auto --dry-run -i
+
+# Actually run full workflow
+python main.py auto
+
+# Interactive full workflow
+python main.py auto -i
+
+# Custom settings
+python main.py auto --max-emails 100 --min-score -3.0
+```
+
+**Workflow Steps:**
+1. 📧 **Fetch**: Gets unread emails from Gmail
+2. 🤖 **Analyze**: AI scores all emails for importance
+3. 🗑️ **Identify**: Finds emails safe to mark as read
+4. ✅ **Execute**: Marks trash emails as read (or shows preview)
+
+**Interactive Mode:**
+- 📋 Explains the complete workflow
+- ⚙️ Shows all settings before starting
+- ❓ Asks for confirmation at each major step
+- 📊 Provides detailed progress and final summary
+
+---
+
+### ⚙️ `setup` - Initial Setup
+
 Initial setup and authentication with Gmail API.
 
 ```bash
 python main.py setup
 ```
 
+**What it does:**
+- 🔐 Sets up OAuth2 authentication with Gmail
+- 📧 Tests Gmail API access
+- 💾 Creates necessary token files
+- ✅ Verifies everything is working
+
+**Run this once after installation to get started.**
+
+---
+
+## 🔄 Typical Workflows
+
+### Daily Email Cleanup
+```bash
+# Quick cleanup (recommended)
+python main.py auto --dry-run -i     # Preview with explanations
+python main.py auto -i               # Actually clean up
+
+# Or step by step
+python main.py unread                # See what's unread
+python main.py analyze -i            # Analyze with AI
+python main.py candidates -i         # Review deletion candidates
+python main.py mark-read --confirm   # Clean up
+```
+
+### First Time Setup
+```bash
+python main.py setup                 # Authenticate with Gmail
+python main.py unread                # Get your unread emails
+python main.py analyze -i            # Try AI analysis (interactive)
+python main.py candidates -i         # See what can be cleaned up
+python main.py mark-read --dry-run   # Preview cleanup
+python main.py mark-read --confirm   # Actually clean up
+```
+
+### Batch Processing
+```bash
+# Process lots of emails efficiently
+python main.py unread --max-emails 200
+python main.py analyze --batch-size 10
+python main.py mark-read --confirm --min-score -1.0
+```
+
+### Individual Review
+```bash
+# See each email being analyzed
+python main.py unread --max-emails 20
+python main.py analyze --batch-size 1
+python main.py candidates --limit 50
+```
+
 ## 📦 Dependencies
 
-**Only 6 lightweight packages!**
+**Only 7 lightweight packages!**
 
 This project uses minimal dependencies to keep installation fast and simple:
 
@@ -151,24 +423,43 @@ This project uses minimal dependencies to keep installation fast and simple:
 - **click** - Modern CLI framework
 - **rich** - Beautiful terminal output with colors and tables
 - **python-dotenv** - Environment variable management
+- **httpx** - Modern HTTP client for LLM API calls
+
+### AI Analysis Requirements
+
+For the AI-powered importance analysis feature:
+- **[Ollama](https://ollama.ai/)** - Local LLM runtime
+- **Recommended models**: 
+  - `qwen2.5-coder:32b` - Fast summarization
+  - `deepseek-r1:32b` - Advanced reasoning for importance scoring
 
 ## 🏗️ Project Structure
 
 ```
 gmail-summarizer/
-├── main.py                 # Main CLI application
-├── src/                    # Source code
+├── main.py                     # Main CLI application
+├── src/                        # Source code
 │   ├── __init__.py
-│   └── gmail_client.py     # Gmail API client
-├── config/                 # Configuration files
+│   ├── gmail_client.py         # Gmail API client
+│   ├── domain/                 # Domain layer (DDD)
+│   │   ├── __init__.py
+│   │   ├── models.py           # Domain models and value objects
+│   │   └── services.py         # Domain services
+│   ├── infrastructure/         # Infrastructure layer
+│   │   ├── __init__.py
+│   │   └── llm_service.py      # LLM integration (Ollama)
+│   └── application/            # Application layer
+│       ├── __init__.py
+│       └── email_service.py    # Application services
+├── config/                     # Configuration files
 │   ├── __init__.py
-│   ├── settings.py         # Settings management
-│   ├── credentials.json    # Gmail API credentials (not in repo)
-│   └── token.json         # OAuth tokens (not in repo)
-├── requirements.txt        # Python dependencies
-├── .env                   # Environment variables (not in repo)
-├── .gitignore            # Git ignore rules
-└── README.md             # This file
+│   ├── settings.py             # Settings management
+│   ├── credentials.json        # Gmail API credentials (not in repo)
+│   └── token.json             # OAuth tokens (not in repo)
+├── requirements.txt            # Python dependencies
+├── .env                       # Environment variables (not in repo)
+├── .gitignore                # Git ignore rules
+└── README.md                 # This file
 ```
 
 ## 🔧 Configuration
@@ -209,12 +500,13 @@ DEBUG=false
 
 ## 🔮 Future Features
 
-- 🤖 **AI Summarization**: Automatic email summarization using OpenAI/Anthropic
+- 🗑️ **Bulk Email Operations**: Delete emails directly from the CLI with confirmation
 - 📈 **Advanced Analytics**: Email trends, sender patterns, and productivity insights
 - 🏷️ **Smart Categorization**: Automatic email categorization and labeling
 - 📱 **Export Options**: Export emails to various formats (CSV, JSON, PDF)
 - 🔔 **Notification System**: Desktop notifications for important emails
 - 📅 **Scheduling**: Automated email processing and reporting
+- 🎯 **Learning Mode**: Train the AI on your reading patterns for better recommendations
 
 ## 🧪 Testing
 

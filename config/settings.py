@@ -31,6 +31,6 @@ class Settings:
         """Get required Gmail API scopes."""
         return [
             'openid',
-            'https://www.googleapis.com/auth/gmail.readonly',
+            'https://www.googleapis.com/auth/gmail.modify',  # Allows marking as read/unread
             'https://www.googleapis.com/auth/userinfo.email'
         ]
