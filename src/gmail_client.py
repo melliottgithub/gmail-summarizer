@@ -82,8 +82,7 @@ class GmailClient:
                     creds = flow.run_local_server(
                         port=0, 
                         access_type='offline', 
-                        include_granted_scopes='true', 
-                        prompt='select_account'
+                        prompt='consent'  # Force consent screen to avoid scope issues
                     )
                     logger.info("OAuth flow completed successfully")
                 except Exception as e:
