@@ -26,7 +26,7 @@ A powerful Python CLI tool for fetching, analyzing, and summarizing unread Gmail
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/gmail-summarizer.git
+   git clone https://github.com/melliottgithub/gmail-summarizer.git
    cd gmail-summarizer
    ```
 
@@ -443,10 +443,6 @@ python main.py candidates --limit 50
 
 ## 📦 Dependencies
 
-**Only 7 lightweight packages!**
-
-This project uses minimal dependencies to keep installation fast and simple:
-
 - **google-api-python-client** - Gmail API access
 - **google-auth** & **google-auth-oauthlib** - Secure OAuth2 authentication
 - **click** - Modern CLI framework
@@ -470,102 +466,22 @@ gmail-summarizer/
 │   │   └── services.py         # Domain services
 │   ├── infrastructure/         # Infrastructure layer
 │   │   ├── __init__.py
+│   │   ├── json_repository.py  # JSON email storage
 │   │   └── llm_service.py      # LLM integration (Ollama)
 │   └── application/            # Application layer
 │       ├── __init__.py
 │       └── email_service.py    # Application services
 ├── config/                     # Configuration files
-│   ├── __init__.py
 │   ├── settings.py             # Settings management
 │   ├── credentials.json        # Gmail API credentials (not in repo)
 │   └── token.json             # OAuth tokens (not in repo)
+├── data/                       # Email database (created automatically)
+│   └── emails.json            # Local email storage (not in repo)
 ├── requirements.txt            # Python dependencies
 ├── .env                       # Environment variables (not in repo)
 ├── .gitignore                # Git ignore rules
 └── README.md                 # This file
 ```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-The following environment variables can be set in your `.env` file:
-
-```env
-# Gmail API Configuration
-GMAIL_CREDENTIALS_PATH=config/credentials.json
-GMAIL_TOKEN_PATH=config/token.json
-
-# Application Settings
-MAX_EMAILS_DEFAULT=50
-DEBUG=false
-```
-
-
-## 🔮 Future Features
-
-- 🗑️ **Bulk Email Operations**: Delete emails directly from the CLI with confirmation
-- 📈 **Advanced Analytics**: Email trends, sender patterns, and productivity insights
-- 🏷️ **Smart Categorization**: Automatic email categorization and labeling
-- 📱 **Export Options**: Export emails to various formats (CSV, JSON, PDF)
-- 🔔 **Notification System**: Desktop notifications for important emails
-- 📅 **Scheduling**: Automated email processing and reporting
-- 🎯 **Learning Mode**: Train the AI on your reading patterns for better recommendations
-
-## 🧪 Testing
-
-Run the test suite:
-
-```bash
-# Install development dependencies
-pip install -r requirements.txt
-
-# Run tests
-pytest
-
-# Run tests with coverage
-pytest --cov=src
-```
-
-## 🛠️ Development
-
-### Code Formatting
-
-This project uses `black` for code formatting:
-
-```bash
-black .
-```
-
-### Linting
-
-Use `flake8` for linting:
-
-```bash
-flake8 src/ main.py
-```
-
-### Pre-commit Hooks
-
-Set up pre-commit hooks for automatic formatting and linting:
-
-```bash
-pre-commit install
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## 🔧 Troubleshooting
 
@@ -598,13 +514,13 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ### Getting Help
 
 If you're still having issues:
-1. Check the [Issues page](https://github.com/yourusername/gmail-summarizer/issues) for similar problems
+1. Check the [Issues page](https://github.com/melliottgithub/gmail-summarizer/issues) for similar problems
 2. Run with debug mode: Set `DEBUG=true` in your `.env` file
 3. Create a new issue with the error message and steps you followed
 
 ## 📞 Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/yourusername/gmail-summarizer/issues) on GitHub.
+If you encounter any issues or have questions, please [open an issue](https://github.com/melliottgithub/gmail-summarizer/issues) on GitHub.
 
 ## 🙏 Acknowledgments
 
@@ -613,6 +529,3 @@ If you encounter any issues or have questions, please [open an issue](https://gi
 - [Click](https://click.palletsprojects.com/) for CLI framework
 - [Ollama](https://ollama.ai/) for local AI capabilities
 
----
-
-**Made with ❤️ for productivity and email management**
