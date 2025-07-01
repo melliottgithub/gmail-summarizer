@@ -4,7 +4,7 @@ Domain services for email importance analysis.
 
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
-from .models import Email, ImportanceScore, EmailSummary, AnalysisConfig
+from src.domain.models import Email, ImportanceScore, EmailSummary, AnalysisConfig
 
 
 class EmailAnalysisService(ABC):
@@ -66,7 +66,7 @@ class EmailImportanceDomainService:
     def get_deletion_candidates(
         self, 
         emails: List[Email], 
-        min_score: float = -5.0
+        min_score: float = 3.0  # Changed to positive threshold for ultra-aggressive mode
     ) -> List[Email]:
         """Get emails that are safe candidates for deletion."""
         candidates = []

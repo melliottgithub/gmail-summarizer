@@ -7,11 +7,11 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from domain.models import Email, AnalysisConfig, ImportanceLevel
-from domain.services import EmailImportanceDomainService
-from infrastructure.llm_service import OllamaLLMService
-from infrastructure.json_repository import JsonEmailRepository
-from gmail_client import GmailClient
+from src.domain.models import Email, AnalysisConfig, ImportanceLevel
+from src.domain.services import EmailImportanceDomainService
+from src.infrastructure.llm_service import OllamaLLMService
+from src.infrastructure.json_repository import JsonEmailRepository
+from src.gmail_client import GmailClient
 
 logger = logging.getLogger(__name__)
 
@@ -260,6 +260,90 @@ class EmailApplicationService:
         }
         return color_map.get(level, 'white')
     
+    def generate_deletion_summary(self, deleted_emails: List[Email]) -> Dict[str, Any]:
+        """Generate a categorized summary of deleted emails."""
+        if not deleted_emails:
+            return {'total': 0, 'categories': {}}
+        
+        # Count by category
+        category_counts = {}
+        category_examples = {}
+        total_size = 0
+        
+        for email in deleted_emails:
+            if email.importance_score and email.importance_score.category:
+                category = email.importance_score.category
+            else:
+                category = 'other'
+            
+            category_counts[category] = category_counts.get(category, 0) + 1
+            total_size += email.size_estimate
+            
+            # Store examples (up to 3 per category)
+            if category not in category_examples:
+                category_examples[category] = []
+            if len(category_examples[category]) < 3:
+                category_examples[category].append({
+                    'sender': email.sender.split('<')[0].strip() if '<' in email.sender else email.sender,
+                    'subject': email.subject[:50] + ('...' if len(email.subject) > 50 else '')
+                })
+        
+        # Create human-readable category names
+        category_labels = {
+            'promotional': 'promotional emails (sales, deals, marketing)',
+            'newsletter': 'newsletters and subscriptions',
+            'social': 'social media notifications',
+            'automated': 'automated service notifications',
+            'financial': 'financial notifications',
+            'security': 'security-related emails',
+            'personal': 'personal communications',
+            'other': 'other emails'
+        }
+        
+        # Format summary
+        summary = {
+            'total': len(deleted_emails),
+            'total_size_mb': round(total_size / (1024 * 1024), 1) if total_size > 0 else 0,
+            'categories': {}
+        }
+        
+        for category, count in category_counts.items():
+            summary['categories'][category] = {
+                'count': count,
+                'label': category_labels.get(category, f'{category} emails'),
+                'examples': category_examples.get(category, [])
+            }
+        
+        return summary
+    
+    def format_deletion_summary_for_display(self, summary: Dict[str, Any]) -> List[str]:
+        """Format deletion summary for CLI display."""
+        if summary['total'] == 0:
+            return ["No emails were marked as read."]
+        
+        lines = [f"✅ Marked {summary['total']} emails as read:"]
+        
+        # Sort categories by count (descending)
+        sorted_categories = sorted(
+            summary['categories'].items(),
+            key=lambda x: x[1]['count'],
+            reverse=True
+        )
+        
+        for category, info in sorted_categories:
+            count = info['count']
+            label = info['label']
+            lines.append(f"  • {count} {label}")
+            
+            # Show examples for large categories
+            if count >= 5 and info['examples']:
+                lines.append(f"    Examples: {', '.join([ex['sender'] for ex in info['examples'][:2]])}")
+        
+        if summary['total_size_mb'] > 0:
+            lines.append(f"  • Estimated space savings: {summary['total_size_mb']} MB")
+        
+        return lines
+
     async def close(self):
         """Clean up resources."""
         if self.llm_service:

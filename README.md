@@ -281,10 +281,12 @@ python main.py candidates --limit 50
 ```
 
 **Min-Score Guidelines:**
-- `-2.0`: **Very aggressive** (deletes most trash)
-- `0.0`: **Moderate** (deletes clear trash)
-- `2.0`: **Conservative** (deletes only obvious spam)
-- `5.0`: **Very conservative** (deletes almost nothing)
+- `3.0`: **ULTRA AGGRESSIVE** (ruthlessly deletes ALL promotional content) - **NEW DEFAULT**
+- `4.0`: **Very aggressive** (deletes most trash)
+- `5.0`: **Aggressive** (deletes clear trash)
+- `6.0`: **Moderate** (conservative approach)
+- `7.0`: **Conservative** (deletes only obvious spam)
+- `8.0`: **Very conservative** (deletes almost nothing)
 
 **What it shows:**
 - 📋 Table of emails recommended for deletion
@@ -305,7 +307,7 @@ python main.py mark-read [OPTIONS]
 **Options:**
 - `--dry-run`: Preview which emails will be marked as read (safe)
 - `--confirm`: Actually mark emails as read in Gmail
-- `--min-score FLOAT`: Minimum score threshold (default: -2.0)
+- `--min-score FLOAT`: Minimum score threshold (default: 3.0, ultra aggressive)
 - `-i, --interactive`: Interactive mode with explanations
 
 **Examples:**
@@ -346,7 +348,7 @@ python main.py auto [OPTIONS]
 
 **Options:**
 - `-m, --max-emails INTEGER`: Maximum emails to fetch (default: 50)
-- `--min-score FLOAT`: Score threshold for marking as read (default: -2.0)
+- `--min-score FLOAT`: Score threshold for marking as read (default: -5.0, very aggressive)
 - `--dry-run`: Preview entire workflow without making changes
 - `-i, --interactive`: Interactive mode with explanations and confirmations
 

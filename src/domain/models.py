@@ -25,6 +25,7 @@ class ImportanceScore:
     reasons: List[str]
     safe_to_delete: bool
     safety_override: bool
+    category: Optional[str] = None
     
     def __post_init__(self):
         """Validate score constraints."""
@@ -99,7 +100,7 @@ class AnalysisConfig:
     vip_senders: List[str] = None
     vip_domains: List[str] = None
     importance_threshold: float = 5.0
-    deletion_threshold: float = -2.0
+    deletion_threshold: float = -10.0  # EXTREMELY aggressive - mark almost all promotional content
     max_batch_size: int = 10
     enable_safety_override: bool = True
     enable_summarization: bool = False

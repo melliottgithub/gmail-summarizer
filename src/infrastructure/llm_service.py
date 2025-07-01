@@ -9,8 +9,8 @@ from typing import List, Dict, Any, Optional
 import httpx
 from datetime import datetime
 
-from domain.models import Email, ImportanceScore, EmailSummary, ImportanceLevel, AnalysisConfig
-from domain.services import EmailAnalysisService
+from src.domain.models import Email, ImportanceScore, EmailSummary, ImportanceLevel, AnalysisConfig
+from src.domain.services import EmailAnalysisService
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ class OllamaLLMService(EmailAnalysisService):
     def _build_importance_prompt(self, email: Email) -> str:
         """Build prompt for importance analysis."""
         return f"""
-You are an aggressive email importance analyzer. Your job is to identify emails that are truly TRASH and safe to delete.
+You are an ULTRA AGGRESSIVE email importance analyzer. Your goal is to RUTHLESSLY eliminate email trash. Be EXTREMELY harsh with ANY marketing content. Default to marking emails as trash unless they are clearly critical.
 
 Email Details:
 - From: {email.sender}
@@ -142,27 +142,62 @@ Email Details:
 - Date: {email.date}
 - Content: {email.text_body[:1000]}...
 
-TRASH EMAIL CATEGORIES (mark as safe_to_delete=true, low scores):
-- Marketing/promotional emails (sales, deals, newsletters)
-- Fitness center promotions, gym memberships
-- Entertainment promotions (Netflix, sports, events)
-- Store promotions (Amazon deals, shopping)
-- Social media notifications
-- Travel deal alerts (unless specific bookings)
-- Restaurant/food delivery promotions
-- Generic job board spam
+TRASH EMAIL CATEGORIES (mark as safe_to_delete=true, score 0.5-1):
+- ANY marketing/promotional emails (sales, deals, newsletters, coupons, offers)
+- ALL fitness/gym/wellness content (promotions, classes, memberships)
+- ALL entertainment (Netflix, streaming, sports, concerts, events, shows)
+- ALL shopping (Amazon, retail, flash sales, deals, product updates)
+- ALL social media notifications (Facebook, LinkedIn, Twitter, Instagram)
+- ALL travel promotions and deals (unless confirmed personal bookings)
+- ALL restaurant/food delivery promotions and marketing
+- ALL job board spam and generic recruiting (unless personally addressed)
+- ALL real estate promotions, listings, and market updates  
+- ALL insurance and loan offers/promotions
+- ALL software/app promotional emails and feature updates
+- ALL event invitations from marketing sources
+- ALL webinar, course, and conference promotions
+- ALL survey requests and feedback forms from companies
+- ALL unsubscribe confirmations and email preferences
+- ALL newsletters unless explicitly personal or critical
+- ALL automated service updates from non-essential services
+- ALL "updates" from social platforms, apps, or services
+- ALL "recommendations" or "suggestions" from any platform
 
-KEEP EMAILS (mark as safe_to_delete=false, high scores):
-- Security alerts, password resets, account notifications
-- Banking, financial, payment confirmations
-- Medical communications, healthcare
-- Direct personal communications
-- Specific job applications you applied for
-- Legal documents, contracts, taxes
-- Service confirmations (actual bookings, purchases)
+LOW PRIORITY TRASH (score 1-2, mark safe_to_delete=true):
+- Company blog updates and newsletters
+- Service feature announcements  
+- Generic customer service templates
+- Automated receipts for non-essential purchases
+- App notifications and updates
+- Platform policy updates
+- Community forum notifications
 
-BE AGGRESSIVE: If it looks like marketing trash, score it 1-3 and mark safe_to_delete=true.
-BE CONSERVATIVE: Only for security/financial/medical emails, use safety_override=true.
+KEEP EMAILS ONLY IF (score 7-10, safe_to_delete=false):
+- Security alerts, password resets, 2FA codes, account breaches
+- Banking, financial statements, payment confirmations, tax documents
+- Medical communications, healthcare appointments, test results
+- Direct personal communications from real humans (not templates)
+- Confirmed travel bookings and reservations (actual tickets/confirmations)
+- Legal documents, contracts, important deadlines
+- Work-related communications from colleagues or clients
+- Critical account notifications (suspensions, violations, required actions)
+
+BE ULTRA AGGRESSIVE:
+- ANY hint of marketing = score 0.5-1 and safe_to_delete=true
+- If unsure whether it's promotional, mark it as trash (score 1)
+- Only use safety_override=true for security/financial/medical/legal/personal
+- Better to delete too much than too little - be RUTHLESS
+- Newsletters, updates, notifications = almost always trash (score 1)
+- "noreply" senders = almost always trash unless security/financial
+
+Email categorization (add to reasons):
+- "promotional" - marketing, sales, deals
+- "newsletter" - subscriptions, updates
+- "social" - social media notifications
+- "automated" - system-generated notifications
+- "personal" - direct human communications
+- "financial" - banking, payments
+- "security" - account security, passwords
 
 Respond in this exact JSON format:
 {{
@@ -170,7 +205,8 @@ Respond in this exact JSON format:
     "importance_level": "<CRITICAL|HIGH|MEDIUM|LOW|SPAM>",
     "safe_to_delete": <true/false>,
     "safety_override": <true/false>,
-    "reasons": ["reason 1", "reason 2", "reason 3"]
+    "reasons": ["category", "specific reason", "pattern identified"],
+    "email_category": "<promotional|newsletter|social|automated|personal|financial|security|other>"
 }}
 """
     
@@ -209,7 +245,8 @@ Respond in this exact JSON format:
                     level=ImportanceLevel(data.get('importance_level', 'MEDIUM')),
                     safe_to_delete=bool(data.get('safe_to_delete', False)),
                     safety_override=bool(data.get('safety_override', False)),
-                    reasons=data.get('reasons', ['LLM analysis'])
+                    reasons=data.get('reasons', ['LLM analysis']),
+                    category=data.get('email_category', 'other')
                 )
             else:
                 raise ValueError("No valid JSON found in response")
@@ -247,34 +284,117 @@ Respond in this exact JSON format:
             )
     
     def _fallback_importance_analysis(self, email: Email) -> ImportanceScore:
-        """Fallback importance analysis using simple rules."""
-        score = 5.0
+        """Fallback importance analysis using ULTRA aggressive pattern recognition."""
+        score = 2.0  # Start with low score, only boost for important emails
         reasons = ["Fallback analysis"]
         safety_override = False
+        category = "other"
         
-        # Basic keyword analysis
+        # Extract sender domain and clean sender
+        sender_lower = email.sender.lower()
+        if '@' in sender_lower:
+            domain = sender_lower.split('@')[-1].split('>')[0]
+        else:
+            domain = sender_lower
+        
+        # Aggressive sender pattern recognition
+        marketing_patterns = [
+            'noreply', 'no-reply', 'donotreply', 'marketing', 'promo', 'newsletter',
+            'notifications', 'deals', 'offers', 'sales', 'support'
+        ]
+        
+        marketing_domains = [
+            'mailchimp.com', 'constantcontact.com', 'campaignmonitor.com',
+            'hubspot.com', 'salesforce.com', 'marketo.com', 'pardot.com',
+            'mailgun.com', 'sendgrid.net', 'amazon.com', 'amazonses.com',
+            'newsletters', 'email-', '-email', 'mail-', '-mail',
+            'bounce', 'campaigns', 'marketing'
+        ]
+        
+        # Check for marketing patterns in sender
+        for pattern in marketing_patterns:
+            if pattern in sender_lower:
+                score = 1.5
+                reasons = ["Marketing sender pattern", f"Contains '{pattern}'"]
+                category = "promotional"
+                break
+        
+        # Check for marketing domains
+        for market_domain in marketing_domains:
+            if market_domain in domain:
+                score = 1.5
+                reasons = ["Marketing domain", f"From {market_domain} service"]
+                category = "promotional"
+                break
+        
+        # Subject line aggressive analysis
+        subject_lower = email.subject.lower()
         text = f"{email.subject} {email.text_body}".lower()
         
-        # Safety keywords
-        safety_keywords = ['security', 'password', 'account', 'bank', 'payment', 'verification']
+        # Aggressive marketing keywords (score 1-2)
+        aggressive_marketing = [
+            'sale', 'deal', 'offer', 'discount', 'coupon', 'promo', 'free shipping',
+            'limited time', 'expires', 'save', 'shop now', 'buy now', 'order now',
+            'new arrival', 'clearance', 'special offer', 'exclusive', 'member',
+            'newsletter', 'update', 'notification from', 'unsubscribe', 'fitness',
+            'gym', 'workout', 'membership', 'entertainment', 'concert', 'event',
+            'webinar', 'conference', 'seminar', 'survey', 'feedback', 'review',
+            'social media', 'follow us', 'like us', 'connect with'
+        ]
+        
+        for keyword in aggressive_marketing:
+            if keyword in text:
+                if score > 2:  # Only lower if not already low
+                    score = 1.8
+                reasons.append(f"Marketing keyword: '{keyword}'")
+                if any(cat in keyword for cat in ['newsletter', 'update', 'notification']):
+                    category = "newsletter"
+                elif any(cat in keyword for cat in ['social', 'follow', 'like', 'connect']):
+                    category = "social"
+                else:
+                    category = "promotional"
+                break
+        
+        # Safety keywords (override aggressive scoring)
+        safety_keywords = ['security', 'password', 'account', 'bank', 'payment', 'verification', 'login', '2fa', 'verify']
         if any(keyword in text for keyword in safety_keywords):
-            score += 5
+            score = 9.0
             safety_override = True
-            reasons.append("Contains security-related keywords")
+            category = "security"
+            reasons = ["Security-related content"]
         
-        # Urgency keywords
-        urgent_keywords = ['urgent', 'asap', 'deadline', 'important']
-        if any(keyword in text for keyword in urgent_keywords):
-            score += 3
-            reasons.append("Contains urgency keywords")
+        # Medical keywords (override aggressive scoring)
+        medical_keywords = ['doctor', 'hospital', 'medical', 'health', 'test results', 'appointment', 'lab', 'clinic', 'patient']
+        if any(keyword in text for keyword in medical_keywords):
+            score = 8.5
+            safety_override = True
+            category = "medical"
+            reasons = ["Medical communication"]
         
-        # Marketing indicators
-        marketing_keywords = ['unsubscribe', 'promotion', 'deal', 'sale']
-        if any(keyword in text for keyword in marketing_keywords):
-            score -= 3
-            reasons.append("Appears to be marketing content")
+        # Financial keywords
+        financial_keywords = ['invoice', 'payment', 'billing', 'transaction', 'transfer', 'balance']
+        if any(keyword in text for keyword in financial_keywords):
+            score = 8.0
+            category = "financial"
+            reasons = ["Financial communication"]
         
-        # Determine level
+        # Personal communication indicators
+        if not any(pattern in sender_lower for pattern in marketing_patterns):
+            # If sender looks personal and no marketing indicators
+            if '@gmail.com' in sender_lower or '@outlook.com' in sender_lower or '@yahoo.com' in sender_lower:
+                if score < 6:  # Don't override financial/security
+                    score = 6.0
+                    category = "personal"
+                    reasons.append("Personal email domain")
+        
+        # Automated service notifications
+        automated_keywords = ['automated', 'notification', 'reminder', 'alert', 'status']
+        if any(keyword in text for keyword in automated_keywords) and category == "other":
+            score = 3.5
+            category = "automated"
+            reasons.append("Automated service notification")
+        
+        # Determine level based on score
         if safety_override or score >= 9:
             level = ImportanceLevel.CRITICAL
         elif score >= 7:
@@ -289,9 +409,10 @@ Respond in this exact JSON format:
         return ImportanceScore(
             score=score,
             level=level,
-            safe_to_delete=(score < 3 and not safety_override),
+            safe_to_delete=(score < 4 and not safety_override),
             safety_override=safety_override,
-            reasons=reasons
+            reasons=reasons,
+            category=category
         )
     
     async def close(self):
